@@ -3,9 +3,9 @@
  */
 package it.unicam.cs.asdl2021.es9;
 
-import java.util.Collection;
-import java.util.Iterator;
-import java.util.Set;
+import java.util.*;
+
+
 
 /**
  * Realizza un insieme tramite una tabella hash con indirizzamento primario (la
@@ -125,18 +125,28 @@ public class CollisionListResizableHashTable<E> implements Set<E> {
 
     @Override
     public boolean contains(Object o) {
-        // TODO implementare
-        /*
+            if(o==null) throw new NullPointerException();        /*
          * ATTENZIONE: usare l'hashCode dell'oggetto e la funzione di hash
          * primaria passata all'atto della creazione: il bucket in cui cercare
          * l'oggetto o è la posizione
-         * this.phf.hash(o.hashCode(),this.getCurrentCapacity)
+         * this.phf.hash(o.hashCode(),this.getCurrentCapacity())
          * 
          * In questa posizione, se non vuota, si deve cercare l'elemento o
          * utilizzando il metodo equals() su tutti gli elementi della lista
          * concatenata lì presente
          * 
          */
+
+        int index = this.phf.hash(o.hashCode(),this.getCurrentCapacity());
+        if(table[index]!=null)
+        {
+            Node<E> itr = (Node<E>) table[index];
+            do{
+                if(itr.item.equals(o))//viene comparato l'item del nodo, non il nodo in sè
+                    return true;
+                itr=itr.next;// !equals, quindi passo al prossimo nodo
+            }while(itr.next!=null);
+        }
         return false;
     }
 
@@ -157,7 +167,8 @@ public class CollisionListResizableHashTable<E> implements Set<E> {
 
     @Override
     public boolean add(E e) {
-        // TODO implementare
+        if (e==null) throw new NullPointerException();
+        if(contains(e)) return false;
         /*
          * ATTENZIONE: usare l'hashCode dell'oggetto e la funzione di hash
          * primaria passata all'atto della creazione: il bucket in cui inserire
@@ -172,7 +183,25 @@ public class CollisionListResizableHashTable<E> implements Set<E> {
         // ATTENZIONE, si inserisca prima il nuovo elemento e poi si controlli
         // se bisogna fare resize(), cioè se this.size >
         // this.getCurrentThreshold()
-        return false;
+
+        int index = this.phf.hash(e.hashCode(), this.getCurrentCapacity());//calcolo dell'indice dell'oggetto da inserire
+        Node<E> toAdd=new Node<>(e,null);
+        if(table[index]==null)//se l'indice dell'array è vuoto, lo aggiungo direttamente come primo elemento di quell'indice
+            table[index]=toAdd;
+        else//altrimenti trovo l'ultimo nodo della singlelinkedlist di quell'indice di array
+        {
+            Node<E> itr = (Node<E>) table[index];
+            while(itr.next!=null)
+            {
+                itr=itr.next;
+            }
+            itr.next=toAdd;//al next di itr viene aggiunto il nuovo nodo aggiunto
+        }
+        size++;
+        modCount++;
+
+        if(this.size>this.getCurrentThreshold()) resize();
+        return true;
     }
 
     /*
@@ -180,12 +209,19 @@ public class CollisionListResizableHashTable<E> implements Set<E> {
      * chiamare quando this.size diventa maggiore di getCurrentThreshold()
      */
     private void resize() {
-        // TODO implementare
+        Object[] doubleTable=this.table;//variabile di comodo
+        clear();//svuoto la table dell'istanza
+        table=new Object[doubleTable.length*2];//table è reinzializzato con la sua dimensione precedente ma x2, con tutti gli oggetti salvati ma da inserire da doubleTable a table
+        for(Object o:doubleTable)
+        {
+            this.add((E) o);//tutto ciò è bellissimo E O
+        }
     }
 
     @Override
     public boolean remove(Object o) {
-        // TODO implementare
+        if(o==null) throw new NullPointerException();
+        if(!contains(o) || isEmpty()) return false;
         /*
          * ATTENZIONE: usare l'hashCode dell'oggetto e la funzione di hash
          * primaria passata all'atto della creazione: il bucket in cui cercare
@@ -201,22 +237,55 @@ public class CollisionListResizableHashTable<E> implements Set<E> {
         // ATTENZIONE: la rimozione, in questa implementazione, **non** comporta
         // mai una resize "al ribasso", cioè un dimezzamento della tabella se si
         // scende sotto il fattore di bilanciamento desiderato.
-        return false;
+        int index = this.phf.hash(o.hashCode(),this.getCurrentCapacity());
+        Node<E> node = (Node<E>) table[index];
+        Node<E> nodeNext;
+        if(node.item.equals(o))
+            node=null;
+        else {
+            while (node.next != null) {
+                nodeNext = node.next;
+                if (node.item.equals(o)) {
+                    node.next = nodeNext.next;
+                    node = null;
+                    break;
+                }
+                node = nodeNext;
+            }
+        }
+        size--;
+        modCount++;
+        return true;
     }
 
     @Override
     public boolean containsAll(Collection<?> c) {
-        // TODO implementare
         // utilizzare un iteratore della collection e chiamare il metodo
         // contains
-        return false;
+        if(c==null) throw new NullPointerException();
+
+        for (Object o : c) {
+            if (!contains(c))
+            {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override
     public boolean addAll(Collection<? extends E> c) {
-        // TODO implementare
         // utilizzare un iteratore della collection e chiamare il metodo add
-        return false;
+        if(c==null) throw new NullPointerException();
+
+        for (Object o : c) {
+            if (!add((E) o))
+            {
+                return false;
+            }
+        }
+        return true;
+
     }
 
     @Override
@@ -226,9 +295,15 @@ public class CollisionListResizableHashTable<E> implements Set<E> {
 
     @Override
     public boolean removeAll(Collection<?> c) {
-        // TODO implementare
+        if(c==null) throw new NullPointerException();
         // utilizzare un iteratore della collection e chiamare il metodo remove
-        return false;
+        for (Object o : c) {
+            if (!remove((E) o))
+            {
+                return false;
+            }
+        }
+        return true;
     }
 
     @Override
@@ -266,25 +341,70 @@ public class CollisionListResizableHashTable<E> implements Set<E> {
      */
     private class Itr implements Iterator<E> {
 
-        // TODO inserire le variabili che servono
-
-        private int numeroModificheAtteso;
+        private int index;
+        Node<E> curr;
+        private final int numeroModificheAtteso;
 
         private Itr() {
-            // TODO implementare il resto
             this.numeroModificheAtteso = modCount;
+            index = 0;
+            curr = null;
         }
 
         @Override
         public boolean hasNext() {
-            // TODO implementare
-            return false;
+            if (curr == null && index == 0){
+                for (int i = 0; i < getCurrentCapacity(); i++){
+                    if ( table[i] != null){
+                        return true;
+                    }
+                }
+                return false;
+            } else {
+                if(curr.next != null){
+                    return true;
+                } else {
+                    for ( int i = ++index; i < getCurrentCapacity(); i++){
+                        if ( table[i] != null){
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+            }
         }
 
         @Override
         public E next() {
-            // TODO implementare
-            return null;
+            if (!hasNext()){
+                throw new NoSuchElementException();
+            }
+            if (numeroModificheAtteso != modCount){
+                throw new ConcurrentModificationException();
+            }
+            if (curr == null && index == 0){
+                for (int i = 0; i < getCurrentCapacity(); i++){
+                    if ( table[i] != null){
+                        index = i;
+                        curr = (Node<E>) table[i];
+                        break;
+                    }
+                }
+            } else {
+                if(curr.next != null){
+                    curr = curr.next;
+                } else {
+                    for ( int i = ++index; i < getCurrentCapacity(); i++){
+                        if ( table[i] != null){
+                            index = i;
+                            curr = (Node<E>) table[i];
+                            break;
+                        }
+                    }
+                }
+            }
+
+            return curr.item;
         }
 
     }
